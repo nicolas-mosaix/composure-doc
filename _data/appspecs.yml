@@ -1,0 +1,9 @@
+bigheader: "AppSpecs"
+abstract: "Library of validated appspecs for Composure."
+toc:
+- docs/appspecs/index.md
+- docs/appspecs/databases.md
+- docs/appspecs/webservers.md
+- docs/appspecs/clusters.md
+- docs/appspecs/storage.md
+- docs/appspecs/orchestration.md

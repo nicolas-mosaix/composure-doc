@@ -1,0 +1,258 @@
+# ---------------------------------------------------------------------------
+#
+#         Neo4j Enterprise Edition deployment in a Docker Cloud
+#
+# ---------------------------------------------------------------------------
+# File name: neo4j-enterprise.yaml
+# ---------------------------------------------------------------------------
+# Compatibility: build 5.1.21+
+# Type: production
+# ---------------------------------------------------------------------------
+
+# More information about Neo4j Clausal clustering with the Enterprise edition:
+#
+#      http://neo4j.com/docs/operations-manual/current/installation/docker/
+#      http://neo4j.com/docs/operations-manual/current/clustering/
+
+# --------------------------- VARIABLES  -----------------------------------
+
+#       Name of a cloud which already exists in CloudOS
+
+cloud: &cloud_name Docker_Cloud_3
+
+#       Name which DOES NOT already exists in the selected Cloud
+
+subnet: &subnet_name 192.168.2.0/24     #10.0.1.0/24
+
+#sub: &sub_name neo4jcc-subnet
+#net: &net_name neo4jcc-network
+
+#           Change host ports to an unused host port (i.e.: xxxx:7474)
+
+port: &port_map1 8574:7474   # HTTP access to Neo4j
+port: &port_map2 9787:7687   # Bolt
+#port: &port_map3 8573:7473   # HTTPS access to Neo4j
+port: &port_map4 5000:5000   # clustering communication
+port: &port_map5 6000:6000   # clustering communication
+port: &port_map6 7000:7000   # clustering communication
+
+# The bolt connector address must include the host port
+# for the Bolt server set above (port_map2)
+#address: &bolt_addr "NEO4J_dbms_connector_bolt_listen__address=0.0.0.0:9787"
+#address: &http_addr "NEO4J_dbms_connector_http_listen__address=0.0.0.0:8574"
+
+
+# Volumes to expose:
+#    /data : allow the database to be persisted outside its container.
+#    /logs : allow access to Neo4j log files.
+
+# ------------------------------------------------------------------------------
+# Note:  This CIDR must be available in the selected Cloud. If you update the
+#        subnet name (CIDR used as the name in CloudOS), make sure any
+#        environmental variables referring to this CIDR below are also updated.
+# ------------------------------------------------------------------------------
+
+
+service:
+    type: COMPOSITE
+    alias: "Neo4j Enterprise Cluster"         # Neo4j Causal Cluster (CC)
+    decomposition:
+
+# ------------------- SCHEDULER AS A SERVICE ------------------------
+
+        - service:
+            type: WSCHED
+            alias: Anti-affinity-policy1
+
+            clouds:
+              - name: *cloud_name
+
+            policy: "fast-spread"
+            avoid_monitoring: true
+            avoid_reservation: true
+
+            # CPU/Memory/Disk requirements for each container:
+
+            config:
+                - name: core1_server
+                  count: 1
+                  cpu: 1
+                  memory: 1024
+                  disk: 0
+                - name: core2_server
+                  count: 1
+                  cpu: 1
+                  memory: 1024
+                  disk: 0
+                - name: core3_server
+                  count: 1
+                  cpu: 1
+                  memory: 1024
+                  disk: 0
+
+            workload_anti_affinity_constraint:
+              - workloads:
+                - core1_server
+                - core2_server
+                - core3_server
+
+        - service:
+            type: CONTAINER
+            alias: core1
+            name: neo4j_core1
+
+            cloud: *cloud_name
+            avoid_scheduler: true
+            subnet: *subnet_name
+
+            cpu: 1
+            memory: 1024                        # At least 1024 for the container to start
+            image: neo4j:enterprise             # Enterprise Edition (latest)
+            # image: neo4j:3.2.0-enterprise     # Enterprise Edition (version 3.2.0)
+            ports:
+                - *port_map1
+                - *port_map2
+                - *port_map4
+                - *port_map5
+                - *port_map6
+            volume_binds:
+                - "/home/ubuntu/neo4j/data-core1:/data"
+                - "/home/ubuntu/neo4j/logs-core1:/logs"
+            environment:
+                - "NEO4J_dbms_mode=CORE"
+                # Address that other machines are told to connect to:
+                # Typically: public IP address of this server
+                - "NEO4J_dbms_connectors_default_advertised__address=$HOSTNAME"
+                # 0.0.0.0 allows Neo4j to bind to any and all network interfaces
+                - "NEO4J_dbms_connectors_default_listen__address=0.0.0.0"
+                - "NEO4J_dbms_connector_bolt_type=BOLT"
+                - "NEO4J_dbms_connector_bolt_enabled=true"
+                - "NEO4J_dbms_connector_bolt_listen__address=0.0.0.0:7687"
+                #- *bolt_addr
+                - "NEO4J_dbms_connector_http_type=HTTP"
+                - "NEO4J_dbms_connector_http_enabled=true"
+                - "NEO4J_dbms_connector_http_listen__address=0.0.0.0:7474"
+                #- *http_addr
+                - "NEO4J_causalClustering_expectedCoreClusterSize=3"
+                - "NEO4J_causal__clustering_discovery__advertised__address=$HOSTNAME:5000" # NOT IN KUBE VERSION
+                - "NEO4J_causal__clustering_raft_messages__log_enable=true"
+                - "NEO4J_causal__clustering_initial__discovery__members=neo4j_core1:5000,neo4j_core2:5000,neo4j_core3:5000"
+                - "NEO4J_dbmscausal__clustering_leader__election__timeout=60s"
+            # Provided by the scheduling policy
+            serverid: "{{Anti-affinity-policy1.implementation.core1_server_1}}"
+
+        - service:
+            type: CONTAINER
+            alias: core2
+            name: neo4j_core2
+
+            cloud: *cloud_name
+            avoid_scheduler: true
+            subnet: *subnet_name
+
+            cpu: 1
+            memory: 1024                        # At least 1024 for the container to start
+            image: neo4j:enterprise             # Enterprise Edition (latest)
+            # image: neo4j:3.2.0-enterprise     # Enterprise Edition (version 3.2.0)
+            ports:
+                - *port_map1
+                - *port_map2
+                - *port_map4
+                - *port_map5
+                - *port_map6
+            volume_binds:
+                - "/home/ubuntu/neo4j/data-core2:/data"
+                - "/home/ubuntu/neo4j/logs-core2:/logs"
+            environment:
+                - "NEO4J_dbms_mode=CORE"
+                # Address that other machines are told to connect to:
+                # Typically: public IP address of this server
+                - "NEO4J_dbms_connectors_default_advertised__address=$HOSTNAME"
+                # 0.0.0.0 allows Neo4j to bind to any and all network interfaces
+                - "NEO4J_dbms_connectors_default_listen__address=0.0.0.0"
+                - "NEO4J_dbms_connector_bolt_type=BOLT"
+                - "NEO4J_dbms_connector_bolt_enabled=true"
+                - "NEO4J_dbms_connector_bolt_listen__address=0.0.0.0:7687"
+                #- *bolt_addr
+                - "NEO4J_dbms_connector_http_type=HTTP"
+                - "NEO4J_dbms_connector_http_enabled=true"
+                - "NEO4J_dbms_connector_http_listen__address=0.0.0.0:7474"
+                #- *http_addr
+                - "NEO4J_causalClustering_expectedCoreClusterSize=3"
+                - "NEO4J_causal__clustering_discovery__advertised__address=$HOSTNAME:5000" # NOT IN KUBE VERSION
+                - "NEO4J_causal__clustering_raft_messages__log_enable=true"
+                - "NEO4J_causal__clustering_initial__discovery__members=neo4j_core1:5000,neo4j_core2:5000,neo4j_core3:5000"
+                - "NEO4J_dbmscausal__clustering_leader__election__timeout=60s"
+            # Provided by the scheduling policy
+            serverid: "{{Anti-affinity-policy1.implementation.core2_server_1}}"
+
+        - service:
+            type: CONTAINER
+            alias: core3
+            name: neo4j_core3
+
+            cloud: *cloud_name
+            avoid_scheduler: true
+            subnet: *subnet_name
+            ports:
+                - *port_map1
+                - *port_map2
+                - *port_map4
+                - *port_map5
+                - *port_map6
+            cpu: 1
+            memory: 1024                        # At least 1024 for the container to start
+            image: neo4j:enterprise             # Enterprise Edition (latest)
+            # image: neo4j:3.2.0-enterprise     # Enterprise Edition (version 3.2.0)
+
+            volume_binds:
+                - "/home/ubuntu/neo4j/data-core3:/data"
+                - "/home/ubuntu/neo4j/logs-core3:/logs"
+            environment:
+                - "NEO4J_dbms_mode=CORE"
+                # Address that other machines are told to connect to:
+                # Typically: public IP address of this server
+                - "NEO4J_dbms_connectors_default_advertised__address=$HOSTNAME"
+                # 0.0.0.0 allows Neo4j to bind to any and all network interfaces
+                - "NEO4J_dbms_connectors_default_listen__address=0.0.0.0"
+                - "NEO4J_dbms_connector_bolt_type=BOLT"
+                - "NEO4J_dbms_connector_bolt_enabled=true"
+                - "NEO4J_dbms_connector_bolt_listen__address=0.0.0.0:7687"
+                #- *bolt_addr
+                - "NEO4J_dbms_connector_http_type=HTTP"
+                - "NEO4J_dbms_connector_http_enabled=true"
+                - "NEO4J_dbms_connector_http_listen__address=0.0.0.0:7474"
+                #- *http_addr
+                - "NEO4J_causalClustering_expectedCoreClusterSize=3"
+                - "NEO4J_causal__clustering_discovery__advertised__address=$HOSTNAME:5000" # NOT IN KUBE VERSION
+                - "NEO4J_causal__clustering_raft_messages__log_enable=true"
+                - "NEO4J_causal__clustering_initial__discovery__members=neo4j_core1:5000,neo4j_core2:5000,neo4j_core3:5000"
+                - "NEO4J_dbmscausal__clustering_leader__election__timeout=60s"
+            # Provided by the scheduling policy
+            serverid: "{{Anti-affinity-policy1.implementation.core3_server_1}}"
+
+# ------------------------ SERVICE CREATION ORDER -------------------
+
+        - relation:
+            type: order
+            before: core1
+            after: core2
+
+        - relation:
+            type: order
+            before: core2
+            after: core3
+
+        - relation:
+            type: order
+            before: Anti-affinity-policy1
+            after: core1
+
+# ------------------------------------------------------------------------------
+
+#                - "NEO4J_dbms_mode=CORE"
+#                - "NEO4J_causalClustering_expectedCoreClusterSize=3"
+#                - "NEO4J_causal__clustering_discovery__advertised__address={{core1.implementation.private_ip}}:5000"
+#                - "NEO4J_causalClustering_initialDiscoveryMembers=10.0.8.207:5000,10.0.8.143:5000,10.0.8.155:5000"
+#                - "NEO4J_causalClustering_initialDiscoveryMembers=54.202.196.176:5000,54.191.184.180:5000, 54.202.199.212:5000"
+#                - *bolt_addr

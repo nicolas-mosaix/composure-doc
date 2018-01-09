@@ -1,0 +1,34 @@
+# ---------------------------------------------------------------------------
+#
+#                    RANCHER as a service in a Docker Cloud
+#
+# ---------------------------------------------------------------------------
+# File name: rancher-app.yaml
+# ---------------------------------------------------------------------------
+# Version: build 5.2.3
+# Type: production
+# ---------------------------------------------------------------------------
+
+# --------------------------- VARIABLES  -----------------------------------
+
+# Name of a cloud which already exists in Composure:
+cloud: &cloud_name Docker_Cloud_10
+
+# Name of a subnet which already exists in Composure
+subnet: &subnet_name 10.0.1.0/24
+
+# ---------------------------------------------------------------------------
+
+service:
+    type: CONTAINER
+    alias: Rancher Server
+    cloud: *cloud_name
+    subnet: *subnet_name
+    cpu: 1
+    memory: 1024
+
+    prefix: rancher-server
+    image: rancher/server
+
+    ports:
+        - :8080

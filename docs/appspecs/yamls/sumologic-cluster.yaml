@@ -1,0 +1,69 @@
+cloud: &cloud_name Docker_Cloud_3
+subnet: &subnet_name 172.17.0.0/16
+server:
+    &server_name1 ip-10-0-8-177
+    &server_name2 ip-10-0-8-182
+    &server_name3 ip-10-0-8-219
+    &server_name4 ip-10-0-8-80
+
+service:
+  type: COMPOSITE
+  alias: SumoLogic Master Deployment
+
+  decomposition:
+
+    - service:
+         type: CONTAINER
+         cloud: *cloud_name
+         subnet: *subnet_name
+         server: *server_name1
+         alias: SumoLogic-Collector
+         prefix: sumo-collector
+         image: sumologic/collector:latest
+         volume_binds:
+             - "/var/run/docker.sock:/var/run/docker.sock"
+         environment:
+             - "SUMO_ACCESS_ID=sun9QXr3rjeVFa"
+             - "SUMO_ACCESS_KEY=6rRqrNxFyaM2cv5vB0BpdQ3DWPzu92oTKLDDtWKwN1OwYkmm0ICh9WjU7oik1Tf4"
+
+    - service:
+         type: CONTAINER
+         cloud: *cloud_name
+         subnet: *subnet_name
+         server: *server_name2
+         alias: SumoLogic-Collector
+         prefix: sumo-collector
+         image: sumologic/collector:latest
+         volume_binds:
+             - "/var/run/docker.sock:/var/run/docker.sock"
+         environment:
+             - "SUMO_ACCESS_ID=sun9QXr3rjeVFa"
+             - "SUMO_ACCESS_KEY=6rRqrNxFyaM2cv5vB0BpdQ3DWPzu92oTKLDDtWKwN1OwYkmm0ICh9WjU7oik1Tf4"
+
+    - service:
+         type: CONTAINER
+         cloud: *cloud_name
+         subnet: *subnet_name
+         server: *server_name3
+         alias: SumoLogic-Collector
+         prefix: sumo-collector
+         image: sumologic/collector:latest
+         volume_binds:
+             - "/var/run/docker.sock:/var/run/docker.sock"
+         environment:
+             - "SUMO_ACCESS_ID=sun9QXr3rjeVFa"
+             - "SUMO_ACCESS_KEY=6rRqrNxFyaM2cv5vB0BpdQ3DWPzu92oTKLDDtWKwN1OwYkmm0ICh9WjU7oik1Tf4"
+
+    - service:
+         type: CONTAINER
+         cloud: *cloud_name
+         subnet: *subnet_name
+         server: *server_name4
+         alias: SumoLogic-Collector
+         prefix: sumo-collector
+         image: sumologic/collector:latest
+         volume_binds:
+             - "/var/run/docker.sock:/var/run/docker.sock"
+         environment:
+             - "SUMO_ACCESS_ID=sun9QXr3rjeVFa"
+             - "SUMO_ACCESS_KEY=6rRqrNxFyaM2cv5vB0BpdQ3DWPzu92oTKLDDtWKwN1OwYkmm0ICh9WjU7oik1Tf4"

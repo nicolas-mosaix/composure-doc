@@ -1,0 +1,148 @@
+### ---------------------------------------------------------------------------
+###
+###                   Wordpress with anti-affinity scheduling policy
+###                   and Network as a service.
+###
+### ---------------------------------------------------------------------------
+### File name: wordpress-anti-affinity.yaml
+### ---------------------------------------------------------------------------
+### Version: build 5.1.25+
+### Type: production
+### ---------------------------------------------------------------------------
+
+# --------------------------- VARIABLES  -----------------------------------
+
+#          Name of a cloud which already exists in CloudOS
+
+cloud: &cloud_name Docker_Cloud_3
+
+#           Name which DOES NOT already exists in the selected Cloud
+
+subnet: &subnet_name 10.0.9.0/24
+
+sub: &sub_name wp9-subnet
+net: &net_name wp9-network
+
+#           Change host port to an unused host port (i.e.: 8091)
+
+port: &port_map :80
+
+# ------------------------------------------------------------------------------
+# Note:  This CIDR must be available in the selected Cloud. If you update the
+#        subnet name (CIDR used as the name in CloudOS), make sure any
+#        environmental variables referring to this CIDR below are also updated.
+# ------------------------------------------------------------------------------
+
+
+service:
+  type: COMPOSITE
+  alias: Wordpress-aaS (anti-affinity)
+  decomposition:
+
+# ------------------- SCHEDULER AS A SERVICE ------------------------
+
+    - service:
+        type: WSCHED
+        alias: Anti-affinity-policy1
+
+        clouds:
+          - name: *cloud_name
+
+        policy: fast-spread
+        avoid_monitoring: true
+        # avoid_reservation: true # false by default
+
+        # CPU/Memory/Disk requirements for each container:
+
+        config:
+            - name: wp_server
+              count: 1
+              cpu: 1
+              memory: 512
+              disk: 0
+            - name: db_server
+              count: 1
+              cpu: 1
+              memory: 512
+              disk: 0
+
+        workload_anti_affinity_constraint:
+          - workloads:
+            - wp_server
+            - db_server
+
+# ------------------- CONTAINER AS A SERVICE -------------------------
+
+    - service:
+        type: CONTAINER
+        alias: wordpress
+
+        # Targeted subnet:
+        subnet: *subnet_name
+
+        # App specific
+        prefix: wordpress
+        image: "wordpress:latest"
+        environment:
+          - "WORDPRESS_DB_HOST={{db.implementation.private_ip}}:3306"
+          - "WORDPRESS_DB_PASSWORD=wordpress"
+        timeout: 240
+        ports:
+          - *port_map
+
+        # Provided by the scheduling service:
+        reservation: "{{Anti-affinity-policy1.implementation.wp_server_1}}"
+        # If avoid_reservation is false, then assign variable to 'serverid' instead of 'reservation'
+        # serverid: "{{Anti-affinity-policy1.implementation.wp_server_1}}"
+
+# ------------------- CONTAINER AS A SERVICE -------------------------
+
+    - service:
+        type: CONTAINER
+        alias: db
+
+        # Targeted subnet:
+        subnet: *subnet_name
+
+        # App specific
+        prefix: db
+        image: "mysql:latest"
+        environment:
+            - "MYSQL_ROOT_PASSWORD=wordpress"
+
+        # Provided by the scheduling service:
+        reservation: "{{Anti-affinity-policy1.implementation.db_server_1}}"
+        # If avoid_reservation is false, then assign variable to 'serverid' instead of 'reservation'
+        #serverid: "{{Anti-affinity-policy1.implementation.db_server_1}}"
+
+# ----------------- NETWORKING AS A SERVICE ------------------------
+
+    - service:
+        type: NETWORK
+        alias: *net_name
+        cloud: *cloud_name
+        name: *net_name
+        network_type: vxlan
+        external_connectivity: false
+
+    - service:
+        type: SUBNET
+        alias: *sub_name
+        name: *sub_name
+        cloud: *cloud_name
+        network: *net_name
+        ip_range: *subnet_name
+
+# ------------------------ SERVICE CREATION ORDER -------------------
+
+    - relation:
+        type: order
+        before: *net_name
+        after: *sub_name
+
+    - relation:
+        type: order
+        before: *sub_name
+        after: db
+
+# ------------------------------------------------------------------------------

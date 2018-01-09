@@ -1,0 +1,124 @@
+### ---------------------------------------------------------------------------
+###
+###                   ELK as a service in single Docker Cloud
+###
+### ---------------------------------------------------------------------------
+### File name: ELK.yaml
+### ---------------------------------------------------------------------------
+### Version: build 5.2.9+
+### Type: production
+### ---------------------------------------------------------------------------
+
+# Official images of Elasticsearch, Kibana and Logstash have been deprecated
+# on Docker Hub.
+# Elastic now host their container images on its own public registry:
+# docker.elastic.co
+#
+# For more information:
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html
+# https://www.elastic.co/guide/en/kibana/current/_pulling_the_image.html
+# https://www.elastic.co/guide/en/logstash/current/docker.html
+#
+
+# --------------------------- VARIABLES  -----------------------------------
+
+#       Name of a cloud which already exists in CloudOS
+
+cloud: &cloud_name Docker_Cloud_3
+
+#       Name (CIDR) which DOES NOT already exists in the selected Cloud
+
+subnet: &subnet_name 192.168.21.0/24
+
+# --------------------------- COMPOSITE  -----------------------------------
+
+service:
+  type: COMPOSITE
+  alias: ELK
+  decomposition:
+
+# --------------- Elasticsearch aaS ---------------------------
+
+    - service:
+        alias: elasticsearch
+        type: CONTAINER
+        image: docker.elastic.co/elasticsearch/elasticsearch:5.6.2
+        cloud: *cloud_name
+        subnet: *subnet_name
+        cpu: 1
+        memory: 3096
+        prefix: esearch
+        #commands: "-e discovery.type=single-node"
+        environment:
+            # https://www.elastic.co/guide/en/elasticsearch/reference/current/important-settings.html
+            - "discovery.type=single-node"
+            #- "DISCOVERY_TYPE=single-node"
+            #- "path.data=" # recommended for production
+            #- "path.logs=" # recommended for production
+            #- "cluster.name=km_elasticsearch"        # Unique for all the nodes in the same cluster
+            - "node.name=km_node1"                   # when provided persists after restarting the node
+            #- "bootstrap.memory_lock=true"          # LimitMEMLOCK must be set to infinity in the systemd config
+            #- "network.host="                       # If not set, network.host=127.0.0.1.
+                                                     # If set, elasticsearch to run in production mode. Expect warnings in the logs.
+            #- "discovery.zen.ping.unicast.hosts="
+            #- "discovery.zen.minimum_master_nodes="
+
+
+        volume_binds:
+            - "elasticsearch1:/usr/share/elasticsearch/data"
+            #- "/elasticsearch1/config:/usr/share/elasticsearch/config"      # Location of the ElasticSearch config file: elasticsearch.yml
+            #- "/elasticsearch1/var/logs: /var/log/elasticsearch"            # Recommended for production
+            #- "/elasticsearch1/var/data: /var/data/elasticsearch"           # Recommended for production
+        ports:
+            - 9200:9200
+            - 9300:9300
+
+# --------------- Kibana aaS ---------------------------
+
+    - service:
+        alias: kibana
+        type: CONTAINER
+        image: docker.elastic.co/kibana/kibana:5.6.2
+        cloud: *cloud_name
+        subnet: *subnet_name
+        cpu: 1
+        memory: 1024
+        environment:
+            # https://www.elastic.co/guide/en/kibana/current/settings.html
+            - "SERVER_NAME=km_kibana"
+            - "ELASTICSEARCH_URL=http://{{elasticsearch.implementation.name}}:9200"
+            #- "ELASTICSEARCH_USERNAME=km"
+            #- "ELASTICSEARCH.PASSWORD=km"
+        ports:
+            - :5601       # To gain access to Kibana web server
+
+# --------------- Logstash aaS ---------------------------
+
+    - service:
+        alias: logstash
+        type: CONTAINER
+        image: docker.elastic.co/logstash/logstash:5.6.2
+        cpu: 1
+        memory: 1024
+        cloud: *cloud_name
+        subnet: *subnet_name
+        environment:
+            - "xpack.monitoring.elasticsearch.url=http://{{elasticsearch.implementation.name}}:9200"
+        volume_binds:
+            - "logstash1:/usr/share/logstash/pipeline/"
+
+
+# ------------------------ SERVICE CREATION ORDER -------------------
+
+    - relation:
+        type: order
+        before: elasticsearch
+        after: logstash
+
+    - relation:
+        type: order
+        before: logstash
+        after: kibana
+
+
+# --------------------------------------------------------------------

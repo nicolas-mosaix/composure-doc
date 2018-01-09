@@ -1,0 +1,115 @@
+
+cloud: &cloud_name Docker_Cloud_3
+subnet: &subnet_name 192.168.1.0/24
+
+
+service:
+  type: COMPOSITE
+  alias: Consul Cluster for Portworx
+
+  decomposition:
+
+    - service:
+        type: WSCHED
+        alias: One_CTNR_per_host
+
+        clouds:
+          - name: *cloud_name
+
+        policy: "fast-spread"
+        avoid_monitoring: true
+        avoid_reservation: true
+
+        # CPU/Memory/Disk requirements for each container:
+
+        config:
+            - name: consul_server
+              count: 3
+              cpu: 1
+              memory: 1024
+              disk: 0
+
+        workload_anti_affinity_constraint:
+          - workloads:
+            - consul_server
+
+    - service:
+        alias: Consul1
+        name: consul-1-ptx
+        type: CONTAINER
+        cloud: *cloud_name
+        subnet: *subnet_name
+        cpu: 1
+        memory: 1024                        # At least 1024 for the container to start
+        image: consul
+        ports:
+            - "8300:8300"
+            - "8301:8301"
+            - "8500:8500"
+        environment:
+            - "CONSUL_BIND_INTERFACE=eth0"
+            #- "CONSUL_CLIENT_INTERFACE=eth0"
+        volume_binds:
+            - "consul1_config:/consul/config"
+            - "consul1_data:/consul/data"
+        command: "agent -server -ui -retry-join=consul-2-ptx -bootstrap-expect=3 -data-dir=/consul/data -client=0.0.0.0"
+        serverid: "{{One_CTNR_per_host.implementation.consul_server_1}}"
+
+
+    - service:
+        alias: Consul2
+        name: consul-2-ptx
+        type: CONTAINER
+        cloud: *cloud_name
+        subnet: *subnet_name
+        cpu: 1
+        memory: 1024                        # At least 1024 for the container to start
+        image: consul
+        ports:
+            - "8300:8300"
+            - "8301:8301"
+        environment:
+            - "CONSUL_BIND_INTERFACE=eth0"
+            #- "CONSUL_CLIENT_INTERFACE=127.0.0.1"
+        volume_binds:
+            - "consul2_config:/consul/config"
+            - "consul2_data:/consul/data"
+        command: "agent -server -retry-join=consul-1-ptx -bootstrap-expect=3 -data-dir=/consul/data"
+        serverid: "{{One_CTNR_per_host.implementation.consul_server_2}}"
+
+
+    - service:
+        alias: Consul3
+        name: consul-3-ptx
+        type: CONTAINER
+        cloud: *cloud_name
+        subnet: *subnet_name
+        image: consul
+        cpu: 1
+        memory: 1024                        # At least 1024 for the container to start
+        ports:
+            - "8300:8300"
+            - "8301:8301"
+        environment:
+            - "CONSUL_BIND_INTERFACE=eth0"
+            #- "CONSUL_CLIENT_INTERFACE=0.0.0.0"
+        volume_binds:
+            - "consul3_config:/consul/config"
+            - "consul3_data:/consul/data"
+        command: "agent -server -retry-join=consul-1-ptx -bootstrap-expect=3 -data-dir=/consul/data"
+        serverid: "{{One_CTNR_per_host.implementation.consul_server_3}}"
+
+ # ------------------------ SERVICE CREATION ORDER -------------------
+
+    - relation:
+        type: order
+        before: Consul1
+        after: Consul2
+
+    - relation:
+        type: order
+        before: Consul2
+        after: Consul3
+
+
+# --------------------------------------------------------------------

@@ -1,0 +1,38 @@
+
+# ----------------- CONFIGURATION SETTINGS ------------------------
+
+cloud: &cloud_name Docker_Cloud_3       # i.e. Docker_Cloud_3
+
+subnet: &subnet_name 192.168.1.0/24     # i.e. 10.0.4.0/24
+
+sub: &sub_name dc3-subnet-1     # mosaix-subnet
+net: &net_name dc3-net-1        # mosaix-network
+
+# ------------------------------------------------------------------
+
+# ----------------- NETWORKING AS A SERVICE ------------------------
+
+service:
+    type: NETWORK
+    alias: *net_name
+    cloud: *cloud_name
+    name: *net_name
+    network_type: vxlan
+    external_connectivity: false
+
+service:
+    type: SUBNET
+    alias: *sub_name
+    name: *sub_name
+    cloud: *cloud_name
+    network: *net_name
+    ip_range: *subnet_name
+
+# ------------------------ SERVICE CREATION ORDER -------------------
+
+relation:
+    type: order
+    before: *net_name
+    after: *sub_name
+
+# ------------------------------------------------------------------------------

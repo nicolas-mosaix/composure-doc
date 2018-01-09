@@ -1,0 +1,112 @@
+### ---------------------------------------------------------------------------
+###
+###                		   Daytrader Demo
+###
+### ---------------------------------------------------------------------------
+### author: Saad Ahmad Khan
+### ---------------------------------------------------------------------------
+base1: &config1
+    memory: 2048
+    cpu: 1
+    
+base2: &config2
+    memory: 1024
+    cpu: 1
+    
+network: &trader_network_name daytrader-network
+
+sub-network: &trader_subnet_range "192.168.2.0/24"
+
+docker-cloud: &docker_cloud skhan-dockerCloud    
+
+server-image: &websphere_image "cyanorobo/mosaixsoft:websphere-daytrader3-ee6"
+
+database-image: &db2_image "cyanorobo/mosaixsoft:ibmdb2"
+
+server_config: &websphere_config
+    type: CONTAINER
+    <<: *config2
+    cloud: *docker_cloud
+    subnet: *trader_subnet_range
+    image: *websphere_image
+    ports:
+      - "9000:9010"
+
+service:
+    type: COMPOSITE
+    alias: daytrader-demo
+    decomposition:
+    - service: 
+        type: WSCHED
+        alias: wsched
+        config: 
+          - <<: *config1
+            count: 1
+            name: workload1
+          - <<: *config2
+            count: 2
+            name: workload2   
+        avoid_reservation: true
+        workload_anti_affinity_constraint:
+        - workloads:
+          - workload1
+          - workload2
+          
+    - service:
+        alias: net1
+        type: NETWORK
+        name: *trader_network_name
+        network_type: vxlan
+        cloud: *docker_cloud
+        external_connectivity: true
+
+    - service:
+        alias: subnet1
+        type: SUBNET
+        name: daytrader-subnet2
+        cloud: *docker_cloud
+        network: *trader_network_name
+        ip_range: *trader_subnet_range
+        
+    - service:
+        alias: ibmdb2
+        type: CONTAINER
+        name: db2
+        <<: *config1
+        serverid: "{{wsched.implementation.workload1_1}}"
+        cloud: *docker_cloud
+        subnet: *trader_subnet_range
+        image: *db2_image
+        command: "db2start"
+        ports:
+          - "50000:50000"
+        environment:
+          - "DB2INST1_PASSWORD=db2inst1"
+          - "LICENSE=accept"
+          
+    - service:
+        alias: websphere1
+        <<: *websphere_config
+        serverid: "{{wsched.implementation.workload2_1}}"
+          
+    - service:
+        alias: websphere2
+        <<: *websphere_config
+        serverid: "{{wsched.implementation.workload2_2}}"
+          
+    - relation:
+        type: order
+        before: net1
+        after: subnet1
+    - relation:
+        type: order
+        before: subnet1
+        after: wsched
+    - relation:
+        type: order
+        before: wsched
+        after: ibmdb2, websphere1, websphere2
+    - relation:
+        type: order
+        before: ibmdb2
+        after: websphere1, websphere2

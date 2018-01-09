@@ -1,0 +1,8 @@
+service:
+    alias: GoLang
+    type: CONTAINER
+    image: golang:1.8
+    cloud: Docker_Cloud_3
+    volume_binds:
+        - "/home/ubuntu:/go/src/"
+    #command: "go run main.go"

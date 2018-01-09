@@ -1,0 +1,52 @@
+name: Composure
+title: Composure
+url: https://composure.io
+description: Multi-cloud Optimizer
+markdown: kramdown
+kramdown:
+  input: GFM
+  html_to_native: true
+  parse_block_html: true # Added to parse HTML code embedded in markdown files.
+  hard_wrap: false
+  syntax_highlighter: rouge
+incremental: true
+
+safe: false
+lsi: false
+
+defaults:
+  -
+    scope:
+      path: "docs"
+    values:
+      layout: docwithnav
+      showedit: true
+
+permalink: pretty
+
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+  - jekyll-include-cache
+# disabled gems
+#  - jekyll-redirect-from
+
+include: [_redirects,_headers]
+
+# SEO
+logo: /images/favicon.png
+twitter:
+  username: composureai
+
+# empty array for tabs
+emptyArray: []
+
+# Tables of contents, stored in the _data folder, that control the sidebar nav
+# The toc name correspond to the name of the YAML file in the _data folder.
+# If the TOC name is changed here, change the name of the YAML file to the same name.
+tocs:
+- docs-home
+- setup
+- guide
+- appspecs

@@ -1,0 +1,47 @@
+service:
+    alias: MongoDB
+    type: CONTAINER
+    image: mongo:latest
+    cloud: Docker_Cloud_1
+    subnet: 192.168.1.0/24
+    environment:
+        - "MONGO_DATA_DIR=/data/db"
+        - "MONGO_LOG_DIR=/dev/null"
+    volume:
+        # specify a name for the volume. Optional.
+          - name: pwx-mongo-vol1
+
+        # Specify container path
+            path: /data/db
+
+            # Specify driver for external volume. Optional.
+            driver: pxd
+
+            # Specify any arbitrary options for volume. Optional.
+            options:
+                - "size: 3"                 # volume size in GB (default: 1)
+                - "fs: ext4"                # filesystem to be laid out: none|xfs|ext4 (default: "ext4")
+                #- "block_size: 32"          # block size in Kbytes (default: 32)
+                #- "repl: 2"                 # replication factor [1..3] (default: 1)
+                #- "scale: "                 # auto scale to max number [1..1024] (default: 1)
+                #- "shared: "                # make this a globally shared namespace volume
+                #- "passphrase:"             # passphrase to use for the PBKDF2 function
+                #- "label: "                 # list of comma-separated name=value pairs
+                #- "io_priority: "           # IO Priority: [high|medium|low] (default: "low")
+                #- "sticky: "                # sticky volumes cannot be deleted until the flag is disabled [on | off]
+                #- "snap_interval: "         # snapshot interval in minutes, 0 disables snaps (default: 0)
+                #- "daily: "                 # daily snapshot at specified hh:mm
+                #- "weekly: "                # weekly snapshot at specified weekday@hh:mm
+                #- "monthly: "               # monthly snapshot at specified day@hh:mm
+                #- "aggregation_level: "     # aggregation level: [1..3 or auto] (default: "1")
+                #- "nodes: "                 # comma-separated Node Id(s)
+
+
+    #volume_binds:
+    #    - "/home/ubuntu:/data/db"
+
+    ports:
+        - 27017:27017
+    command: "mongod --smallfiles --logpath=/dev/null"
+
+    # serverid:

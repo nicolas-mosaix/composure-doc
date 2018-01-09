@@ -1,0 +1,245 @@
+### ---------------------------------------------------------------------------
+###
+###           3-node ELK Cluster as a service in single Docker Cloud
+###
+### ---------------------------------------------------------------------------
+### File name: ELK-Cluster.yaml
+### ---------------------------------------------------------------------------
+### Version: build 5.2.9+
+### Type: production
+### ---------------------------------------------------------------------------
+
+# Using container images hosted by Elastic on its own public registry:
+#       docker.elastic.co
+#
+# Note: Official images of E, L and K have been deprecated on Docker Hub.
+#
+# For more information:
+#       https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html
+#       https://www.elastic.co/guide/en/kibana/current/_pulling_the_image.html
+#       https://www.elastic.co/guide/en/logstash/current/docker.html
+#
+# Designed for 3 Elasticsearch nodes to be deployed on 3 different Docker hosts,
+# in the same overlay network...
+# ...required as the exposed ports are the same for all 3 (9200 and 9300)
+# Each node has a fixed container name (esearch1, esearch2 and esearch3) used to
+# bind each of them to their private IP address in that overlay network, by
+# setting 2 Elasticsearch settings: network.host and transport.host.
+#
+# Kibana HTTP port is random and maps to its internal port 5601.
+# Used the default username (elastic) and password (changeme) to login to Kibana.
+#
+# Logstash connects to first ElasticSearch node via its container name and port 9200
+#
+# Both Kibana and Logstash are deployed in the same overlay network as the E. nodes.
+
+# --------------------------- VARIABLES  -----------------------------------
+
+#       Name of a cloud which already exists in CloudOS
+
+cloud: &cloud_name Docker_Cloud_3
+
+#       Name (CIDR) which ALREADY EXIST in the selected Cloud
+
+subnet: &subnet_name 192.168.20.0/24
+
+# --------------------------- COMPOSITE  -----------------------------------
+
+service:
+  type: COMPOSITE
+  alias: ELK
+  decomposition:
+
+# ------------------- SCHEDULER AS A SERVICE ------------------------
+
+    - service:
+        type: WSCHED
+        alias: One_eNode_per_host          # One ElasticSearch per node
+
+        clouds:
+          - name: *cloud_name
+
+        policy: "fast-spread"
+        avoid_monitoring: true
+        avoid_reservation: true
+
+        # CPU/Memory/Disk requirements for each container:
+
+        config:
+            - name: esearch_node
+              count: 3
+              cpu: 1
+              memory: 3096
+              disk: 0
+
+        workload_anti_affinity_constraint:
+          - workloads:
+            - esearch_node
+
+# --------------- Elasticsearch Node 1 ---------------------------
+
+    - service:
+        alias: elasticsearch1
+        type: CONTAINER
+        image: docker.elastic.co/elasticsearch/elasticsearch:5.6.2
+        cloud: *cloud_name
+        subnet: *subnet_name
+        cpu: 1
+        memory: 3096
+        name: esearch1
+        #commands: "-e discovery.type=single-node"
+        environment:
+            # https://www.elastic.co/guide/en/elasticsearch/reference/current/important-settings.html
+            #- "discovery.type=single-node"
+            #- "path.data=" # recommended for production
+            #- "path.logs=" # recommended for production
+            - "cluster.name=km_elasticsearch"        # Unique for all the nodes in the same cluster
+            - "node.name=km_node1"                   # when provided persists after restarting the node
+            - "bootstrap.memory_lock=true"           # LimitMEMLOCK must be set to infinity in the systemd config
+            - "network.host=esearch1"               # If not set, network.host=127.0.0.1. -- 10.1.0.16
+            - "transport.host=esearch1"
+            # - "http.host=0.0.0.0"
+                                                     # If set, elasticsearch to run in production mode. Expect warnings in the logs.
+            #- "discovery.zen.ping.unicast.hosts="
+            - "discovery.zen.minimum_master_nodes=2"
+            - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+
+        serverid: "{{One_eNode_per_host.implementation.esearch_node_1}}"
+
+        volume_binds:
+            - "elasticsearch1:/usr/share/elasticsearch/data"
+            #- "/elasticsearch1/config:/usr/share/elasticsearch/config"      # Location of the ElasticSearch config file: elasticsearch.yml
+            #- "/elasticsearch1/var/logs: /var/log/elasticsearch"            # Recommended for production
+            #- "/elasticsearch1/var/data: /var/data/elasticsearch"           # Recommended for production
+        ports:
+            - 9200:9200
+            - 9300:9300
+
+# --------------- Elasticsearch Node 2 ---------------------------
+
+    - service:
+        alias: elasticsearch2
+        type: CONTAINER
+        image: docker.elastic.co/elasticsearch/elasticsearch:5.6.2
+        cloud: *cloud_name
+        subnet: *subnet_name
+        cpu: 1
+        memory: 3096
+        name: esearch2
+        #commands: "-e discovery.type=single-node"
+        environment:
+            # https://www.elastic.co/guide/en/elasticsearch/reference/current/important-settings.html
+            #- "discovery.type=single-node"
+            #- "path.data=" # recommended for production
+            #- "path.logs=" # recommended for production
+            - "cluster.name=km_elasticsearch"        # Unique for all the nodes in the same cluster
+            - "node.name=km_node2"                   # when provided persists after restarting the node
+            - "bootstrap.memory_lock=true"           # LimitMEMLOCK must be set to infinity in the systemd config
+            - "network.host=esearch2"               # If not set, network.host=127.0.0.1. -- 10.1.0.16
+            - "transport.host=esearch2"
+            # - "http.host=0.0.0.0"
+
+            - "discovery.zen.ping.unicast.hosts={{elasticsearch1.implementation.name}}"
+            - "discovery.zen.minimum_master_nodes=2"
+            - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+
+        serverid: "{{One_eNode_per_host.implementation.esearch_node_2}}"
+
+        volume_binds:
+            - "elasticsearch2:/usr/share/elasticsearch/data"
+            #- "/elasticsearch1/config:/usr/share/elasticsearch/config"      # Location of the ElasticSearch config file: elasticsearch.yml
+            #- "/elasticsearch1/var/logs: /var/log/elasticsearch"            # Recommended for production
+            #- "/elasticsearch1/var/data: /var/data/elasticsearch"           # Recommended for production
+        ports:
+            - 9200:9200
+            - 9300:9300
+
+# --------------- Elasticsearch Node 2 ---------------------------
+
+    - service:
+        alias: elasticsearch3
+        type: CONTAINER
+        image: docker.elastic.co/elasticsearch/elasticsearch:5.6.2
+        cloud: *cloud_name
+        subnet: *subnet_name
+        cpu: 1
+        memory: 3096
+        name: esearch3
+        #commands: "-e discovery.type=single-node"
+        environment:
+            # https://www.elastic.co/guide/en/elasticsearch/reference/current/important-settings.html
+            #- "discovery.type=single-node"
+            #- "path.data=" # recommended for production
+            #- "path.logs=" # recommended for production
+            - "cluster.name=km_elasticsearch"        # Unique for all the nodes in the same cluster
+            - "node.name=km_node3"                   # when provided persists after restarting the node
+            - "bootstrap.memory_lock=true"           # LimitMEMLOCK must be set to infinity in the systemd config
+            - "network.host=esearch3"                # If not set, network.host=127.0.0.1. -- 10.1.0.16
+            - "transport.host=esearch3"
+            # - "http.host=0.0.0.0"
+
+            - "discovery.zen.ping.unicast.hosts={{elasticsearch1.implementation.name}}"
+            - "discovery.zen.minimum_master_nodes=2"
+            - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+
+        serverid: "{{One_eNode_per_host.implementation.esearch_node_3}}"
+
+        volume_binds:
+            - "elasticsearch3:/usr/share/elasticsearch/data"
+            #- "/elasticsearch1/config:/usr/share/elasticsearch/config"      # Location of the ElasticSearch config file: elasticsearch.yml
+            #- "/elasticsearch1/var/logs: /var/log/elasticsearch"            # Recommended for production
+            #- "/elasticsearch1/var/data: /var/data/elasticsearch"           # Recommended for production
+        ports:
+            - 9200:9200
+            - 9300:9300
+
+
+# --------------- Kibana aaS ---------------------------
+
+    - service:
+        alias: kibana
+        type: CONTAINER
+        image: docker.elastic.co/kibana/kibana:5.6.2
+        cloud: *cloud_name
+        subnet: *subnet_name
+        cpu: 1
+        memory: 1024
+        environment:
+            # https://www.elastic.co/guide/en/kibana/current/settings.html
+            - "SERVER_NAME=km_kibana"
+            - "ELASTICSEARCH_URL=http://{{elasticsearch1.implementation.name}}:9200"
+            #- "ELASTICSEARCH_USERNAME=km"
+            #- "ELASTICSEARCH.PASSWORD=km"
+        ports:
+            - :5601       # To gain access to Kibana web server
+
+# --------------- Logstash aaS ---------------------------
+
+    - service:
+        alias: logstash
+        type: CONTAINER
+        image: docker.elastic.co/logstash/logstash:5.6.2
+        cpu: 1
+        memory: 1024
+        cloud: *cloud_name
+        subnet: *subnet_name
+        environment:
+            - "xpack.monitoring.elasticsearch.url=http://{{elasticsearch1.implementation.name}}:9200"
+        volume_binds:
+            - "logstash1:/usr/share/logstash/pipeline/"
+
+
+# ------------------------ SERVICE CREATION ORDER -------------------
+
+    - relation:
+        type: order
+        before: elasticsearch1, elasticsearch2, elasticsearch3
+        after: logstash
+
+    - relation:
+        type: order
+        before: logstash
+        after: kibana
+
+
+# --------------------------------------------------------------------

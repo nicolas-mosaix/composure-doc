@@ -1,0 +1,62 @@
+service:
+    type: COMPOSITE
+    alias: MyWordpressApp1
+    decomposition:
+
+        - service:
+            type: WSCHED
+            alias: CloudPriorityPolicy1
+
+            policy: fast-cloud-priority
+            cloud:
+                - name: Cloud_Docker_1
+                  priority: 1
+                - name: Cloud_Docker_2
+                  priority: 2
+            avoid_monitoring: true
+
+            # CPU/Memory/Disk requirements for each container:
+            config:
+            name: server
+            count: 2
+            cpu: 1
+            memory: 512
+            disk: 0
+
+        - service:
+            type: CONTAINER
+            alias: wordpress
+
+            # Targeted subnet:
+            subnet: 10.32.0.0
+
+            # App specific
+            prefix: wordpress
+            image: wordpress:latest
+            environment:
+                - WORDPRESS_DB_HOST={{db.implementation.private_ip$0}}:3306
+                - WORDPRESS_DB_PASSWORD=wordpress
+            timeout: 180
+            ports:
+                - 8091:80
+            # Scheduling policy (dictated by global scheduling policy WSCHED)
+            serverid: {{CloudPriorityPolicy1.implementation.server_1}}
+            policy: fast-basic
+
+        - service:
+            type: CONTAINER
+            alias: db
+
+            # Targeted subnet:
+            subnet: 10.32.0.0
+
+            # App specific
+            prefix: db
+            image: mysql:latest
+            avoid_monitoring: true
+            environment:
+                - MYSQL_ROOT_PASSWORD=wordpress
+
+            # Scheduling policy (dictated by global scheduling policy WSCHED)
+            serverid: {{CloudPriorityPolicy1.implementation.server_2}}
+            policy: fast-basic

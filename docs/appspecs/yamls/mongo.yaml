@@ -1,0 +1,13 @@
+service:
+    alias: mongodb
+    type: CONTAINER
+    image: mongo:latest
+    cloud: Docker_Cloud_3
+    environment:
+        - "MONGO_DATA_DIR=/data/db"
+        - "MONGO_LOG_DIR=/dev/null"
+    volume_binds:
+        - "/home/ubuntu:/data/db"
+    ports:
+        - 27017:27017
+    command: "mongod --smallfiles --logpath=/dev/null"

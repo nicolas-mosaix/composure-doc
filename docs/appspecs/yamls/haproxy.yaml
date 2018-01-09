@@ -1,0 +1,10 @@
+service:
+    alias: haproxy
+    type: CONTAINER
+    image: eeacms/haproxy
+    cloud: Docker_Cloud_3
+    ports: 
+        - 1936:1936
+    environment:
+      - "BACKENDS=webapp"
+      - "DNS_ENABLED=true"

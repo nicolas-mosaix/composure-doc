@@ -1,0 +1,125 @@
+### ---------------------------------------------------------------------------
+###
+###                   ELK as a service in single Docker Cloud
+###
+### ---------------------------------------------------------------------------
+### File name: ELK.yaml
+### ---------------------------------------------------------------------------
+### Version: build 5.2.9+
+### Type: production
+### ---------------------------------------------------------------------------
+
+
+
+# --------------------------- VARIABLES  -----------------------------------
+
+#       Name of a cloud which already exists in CloudOS
+
+cloud: &cloud_name Docker_Cloud_3
+
+#       Name (CIDR) which DOES NOT already exists in the selected Cloud
+
+subnet: &subnet_name 192.168.7.0/24
+
+sub: &sub_name cc7-subnet
+net: &net_name cc7-network
+
+# --------------------------- COMPOSITE  -----------------------------------
+
+service:
+  type: COMPOSITE
+  alias: ELK
+  decomposition:
+
+# --------------- Elasticsearch aaS ---------------------------
+
+    - service:
+        alias: elasticsearch
+        type: CONTAINER
+        image: khezen/elasticsearch
+        cloud: *cloud_name
+        subnet: *subnet_name
+        prefix: esearch
+        environment:
+            - "ELASTIC_PWD = changeme"
+            - "KIBANA_PWD = changeme"
+            - "LOGSTASH_PWD = changeme"
+            - "BEATS_PWD = changeme"
+            - "ELASTALERT_PWD = changeme"
+            - "HEAP_SIZE = 1g"
+        volume_binds:
+            - "/data/elasticsearch:/usr/share/elasticsearch/data"
+            - "/etc/elasticsearch:/usr/share/elasticsearch/config"
+        ports:
+            - 9200:9200
+            - 9300:9300
+
+# --------------- Kibana aaS ---------------------------
+
+    - service:
+        alias: kibana
+        type: CONTAINER
+        image: khezen/kibana
+        cloud: *cloud_name
+        subnet: *subnet_name
+        environment:
+            - "KIBANA_PWD = changeme"
+            - "ELASTICSEARCH_HOST = {{elasticsearch.implementation.name}}"
+            - "ELASTICSEARCH_PORT = 9200"
+        volume_binds:
+            - "/etc/kibana:/etc/kibana"
+            - "/etc/elasticsearch/searchguard/ssl:/etc/searchguard/ssl"
+        ports:
+            - 5601:5601
+
+# --------------- Logstash aaS ---------------------------
+
+    - service:
+        alias: logstash
+        type: CONTAINER
+        image: khezen/logstash
+        cloud: *cloud_name
+        subnet: *subnet_name
+        environment:
+            - "HEAP_SIZE = 1g"
+            - "LOGSTASH_PWD = changeme"
+            - "ELASTICSEARCH_HOST = {{elasticsearch.implementation.name}}"
+            - "ELASTICSEARCH_PORT = 9200"
+        volume_binds:
+            - "/etc/logstash:/etc/logstash/conf.d"
+            - "/etc/elasticsearch/searchguard/ssl:/etc/elasticsearch/searchguard/ssl"
+        ports:
+        - 5000:5000
+        - 5001:5001
+
+# --------------- Networking aaS ---------------------------
+
+    - service:
+        type: NETWORK
+        alias: *net_name
+        cloud: *cloud_name
+        name: *net_name
+        network_type: vxlan
+        external_connectivity: false
+
+    - service:
+        type: SUBNET
+        alias: *sub_name
+        name: *sub_name
+        cloud: *cloud_name
+        network: *net_name
+        ip_range: *subnet_name
+
+# ------------------------ SERVICE CREATION ORDER -------------------
+
+    - relation:
+        type: order
+        before: *net_name
+        after: *sub_name
+
+    - relation:
+        type: order
+        before: *sub_name
+        after: elasticsearch, kibana, logstash
+
+# --------------------------------------------------------------------

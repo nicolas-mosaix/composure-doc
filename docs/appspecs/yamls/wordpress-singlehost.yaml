@@ -1,0 +1,81 @@
+### ---------------------------------------------------------------------------
+###
+###                   Composable App in a Docker Cloud
+###
+### ---------------------------------------------------------------------------
+### File name: wordpress-singlehost.yaml
+### ---------------------------------------------------------------------------
+### Version: build 5.1.25+
+### Type: production
+### ---------------------------------------------------------------------------
+
+# --------------------------- VARIABLES  -----------------------------------
+
+cloud: &cloud_name Docker_Cloud_3
+
+# ------------------------------------------------------------------------------
+# CPU, Memory and Disk requirements for both containers (Wordpress & MySQL)
+# ------------------------------------------------------------------------------
+
+base: &config
+  cpu: 1
+  memory: 1024
+  disk: 0
+
+# ------------------------------------------------------------------------------
+
+service:
+  type: COMPOSITE
+  alias: Wordpress App (SingleHost)
+  decomposition:
+
+    - service:
+        type: WSCHED
+        alias: affinity-policy
+        config:
+          - <<: *config
+            count: 2
+            name: server
+        policy: "affinity"
+        cloud:
+          - *cloud_name
+        avoid_reservation: true
+
+# ----------------- MYSQL -------------------------------------
+
+    - service:
+        type: CONTAINER
+        alias: db
+        prefix: db
+        <<: *config
+        image: "mysql:latest"
+        serverid: "{{affinity-policy.implementation.server_1}}"
+        environment:
+           - "MYSQL_ROOT_PASSWORD=wordpress"
+           - "MYSQL_DATABASE=wordpress"
+           - "MYSQL_USER=wordpress"
+           - "MYSQL_PASSWORD=wordpress"
+
+# ----------------- WORDPRESS -------------------------------------
+
+    - service:
+        type: CONTAINER
+        alias: wordpress
+        prefix: wordpress
+        <<: *config
+        image: "wordpress:latest"
+        serverid: "{{affinity-policy.implementation.server_2}}"
+        environment:
+          - "WORDPRESS_DB_HOST={{db.implementation.private_ip}}:3306"
+          - "WORDPRESS_DB_PASSWORD=wordpress"
+        ports:
+          - ":80"
+
+# ------------------------------------------------------------------------------
+
+    - relation:
+         type: order
+         before: db
+         after: wordpress
+
+# ------------------------------------------------------------------------------

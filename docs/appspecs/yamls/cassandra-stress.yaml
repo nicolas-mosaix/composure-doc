@@ -1,0 +1,40 @@
+### ---------------------------------------------------------------------------
+###
+###                   CASSANDRA CLUSTER as a service in single Docker Cloud
+###
+### ---------------------------------------------------------------------------
+### File name: Cassandra-Strees-as-a-Service.yaml
+### ---------------------------------------------------------------------------
+### Version: build 5.1.21+
+### Type: production
+### ---------------------------------------------------------------------------
+
+# --------------------------- VARIABLES  -----------------------------------
+
+#       Name of a cloud which already exists in CloudOS
+
+cloud: &cloud_name Docker_Cloud_3
+
+#       Name of the subnet where Cassandra cluster runs
+
+subnet: &subnet_name 192.168.1.0/24
+
+# ---------------------------------------------------------------------------
+
+
+service:
+  alias: Cassandra stress service
+  type: CONTAINER
+  cloud: *cloud_name
+  image : cassandra:latest
+  prefix: cassandra-stress
+  avoid_reservation: true
+  avoid_scheduler: true
+  cpu: 1
+  memory: 2150
+  disk: 0
+  subnet: *subnet_name
+  command: "bash -x -c 'time /usr/bin/cassandra-stress write duration=30m -rate threads=6 -schema \"replication(strategy=SimpleStrategy,replication_factor=2)\" -node 192.168.1.2'"
+  environment:
+    - "MAX_HEAP_SIZE=2G"
+    - "HEAP_NEWSIZE=1000M"

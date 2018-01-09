@@ -1,0 +1,10 @@
+service:
+    alias: rabbitmq
+    type: CONTAINER
+    image: bitnami/rabbitmq:latest
+    cloud: Docker_Cloud_3
+    volume_binds:
+        - "/home/ubuntu:/bitnami"
+    ports: 
+        - 4369:4369
+        - 5672:5672

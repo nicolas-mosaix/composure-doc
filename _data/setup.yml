@@ -1,0 +1,5 @@
+bigheader: "Setup"
+abstract: "Samples of validated AppSpecs."
+toc:
+- docs/setup/index.md
+- docs/setup/pick-right-solution.md

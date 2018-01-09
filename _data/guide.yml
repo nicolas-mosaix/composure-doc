@@ -1,0 +1,46 @@
+bigheader: "User Guide"
+abstract: "Step-by-step instructions for performing tasks with Composure."
+toc:
+- docs/guide/index.md
+
+- title: Getting Started
+  section:
+  - docs/guide/getting/product-overview.md
+  - docs/guide/getting/installation-requirements.md
+  - docs/guide/getting/start-here.md
+
+- title: Web Console Overview
+  section:
+  - docs/guide/getting/web-console-overview.md
+
+- title: Cloud Composer
+  section:
+  - docs/guide/composer/composer-overview.md
+  - docs/guide/composer/composer-hub.md
+  - docs/guide/composer/composer-services.md
+  - docs/guide/composer/composer-composer.md
+  - docs/guide/composer/composer-service-types.md
+
+- title: Cloud Optimizer
+  section:
+  - docs/guide/optimizer/optimizer-autoscaler.md
+  - docs/guide/optimizer/optimizer-scheduler.md
+  - docs/guide/optimizer/optimizer-firehose.md
+
+- title: Cloud Search
+  section:
+  - docs/guide/cloud/cloud-search.md
+
+- title: Cloud Graph
+  section:
+  - docs/guide/cloud/cloud-graph.md
+
+- title: Administrative Tools
+  section:
+  - docs/guide/admin/admin-connectivity-optimizer.md
+  - docs/guide/admin/admin-heatmap.md
+  - docs/guide/admin/admin-user-management.md
+
+- title: Web Command Line Interface (CLI)
+  section:
+  - docs/guide/admin/admin-web-cli.md

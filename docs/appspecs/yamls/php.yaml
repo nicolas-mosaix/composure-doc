@@ -1,0 +1,9 @@
+service:
+    alias: php
+    type: CONTAINER
+    image: php:7-fpm
+    cloud: Docker_Cloud_3
+    volume_binds:
+        - "/home/ubuntu:/code"
+    ports: 
+        - 4369:4369

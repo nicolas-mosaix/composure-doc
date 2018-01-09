@@ -1,0 +1,122 @@
+### ---------------------------------------------------------------------------
+###
+###                   CASSANDRA CLUSTER as a service in single Docker Cloud
+###
+### ---------------------------------------------------------------------------
+### File name: cassandra-aas.yaml
+### ---------------------------------------------------------------------------
+### Version: build 5.1.21+
+### Type: production
+### ---------------------------------------------------------------------------
+
+
+
+# --------------------------- VARIABLES  -----------------------------------
+
+#       Name of a cloud which already exists in CloudOS
+
+cloud: &cloud_name Docker_Cloud_3
+
+#       Name (CIDR) which DOES NOT already exists in the selected Cloud
+
+subnet: &subnet_name 192.168.1.0/24
+
+sub: &sub_name cc1-subnet
+net: &net_name cc1-network
+
+# --------------------------- VARIABLES  -----------------------------------
+
+
+# ------------ CASSANDRA SEED CONFIGURATION ------------------
+
+config_setting : &scale_config
+  type: CONTAINER
+  prefix: cassandra
+  image: mosaixsoft/cassandra:latest
+  cpu: 2
+  memory: 3096
+  status: UP
+  subnet: *subnet_name
+  environment:
+    - "MAX_HEAP_SIZE=2G"
+    - "HEAP_NEWSIZE=1000M"
+
+# ------------- COMPOSITE SERVICE -----------------------------
+
+service:
+  type: COMPOSITE
+  alias: Cassandra_Cluster_(single_cloud)
+
+  decomposition:
+
+# ---------  CASSANDRA cluster manager ------------------
+
+    - service:
+        type: CASSANDRA_CLUSTER_MANAGER
+        alias: cassandra-manager
+        cluster_config:
+            - "seeds : 2"
+
+# ---------  CASSANDRA Autoscale Policy  ------------------
+
+    - service:
+        type: AUTOSCALER
+        alias: cassandra-autoscaler
+        config_manager_id : "{{cassandra-manager}}"
+        scale_mode: serial
+        config_manager_events:
+          - before_running
+          - before_stop
+        template:
+          - cloud : *cloud_name
+            <<: *scale_config
+
+        policy:
+          - name: cassandra-policy
+            min: 2
+            max: 3
+            scheduler_policy: cloud-priority
+            monitor:
+              - name: cpu_util
+                scale_in_threshold: 0
+                scale_out_threshold: 40
+                scale_out_unit: 1
+                scale_in_unit: 1
+                reaction_time: 30
+
+# ----------------- NETWORKING AS A SERVICE ------------------------
+
+    - service:
+        type: NETWORK
+        alias: *net_name
+        cloud: *cloud_name
+        name: *net_name
+        network_type: vxlan
+        external_connectivity: false
+
+    - service:
+        type: SUBNET
+        alias: *sub_name
+        name: *sub_name
+        cloud: *cloud_name
+        network: *net_name
+        ip_range: *subnet_name
+
+# ------------------------ SERVICE CREATION ORDER -------------------
+
+    - relation:
+        type: order
+        before: *net_name
+        after: *sub_name
+
+    - relation:
+        type: order
+        before: *sub_name
+        after: cassandra-manager
+
+    - relation:
+        type: order
+        before: cassandra-manager
+        after: cassandra-autoscaler
+
+# ------------------------------------------------------------------------------

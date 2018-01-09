@@ -1,0 +1,44 @@
+service:
+    type: COMPOSITE
+    alias: MyWordpressBasicApp1
+
+    decomposition:
+
+        - service:
+            type: CONTAINER
+            alias: wordpress
+
+            # Targeted cloud / subnet:
+            cloud: Cloud_Docker_1
+            subnet: 172.17.0.0
+
+            # App specific.
+            prefix: wordpress
+            image: wordpress:latest
+            environment:
+                - WORDPRESS_DB_HOST={{db.implementation.private_ip$0}}:3306
+                - WORDPRESS_DB_PASSWORD=wordpress
+            timeout: 180
+            ports:
+                - 8091:80
+
+            # Scheduling policy
+            policy: fast-basic
+            avoidmonitoring: true
+
+        - service:
+            type: CONTAINER
+            alias: db
+
+            # Targeted cloud / subnet:
+            cloud: Cloud_Docker_1
+            subnet: 172.17.0.0
+
+            # App specific
+            prefix: db
+            image: mysql:latest
+            environment:
+                - MYSQL_ROOT_PASSWORD=wordpress
+
+            # Scheduling policy
+            policy: fast-basic

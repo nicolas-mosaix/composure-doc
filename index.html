@@ -1,0 +1,83 @@
+---
+layout: basic
+cid: home
+---
+
+<!--  TOP  -->
+<section id="hero" class="light-text">
+    <main>
+        <div id="headlineWrapper">
+            <h1>Composure</h1>
+            <h4><em>Multi-cloud Optimizer</em></h4>
+            <h5>Deploy, control, optimize and secure applications on container or VM-based clouds</h5>
+        </div>
+        <a href="https://www.youtube.com/channel/UCm22fZAiz4M5cjQTMU0D6Fg" id="quickstartButton" class="button">Video demos</a>
+        <a href="/docs/guide/" id="quickstartButton" class="button">User guide</a>
+    </main>
+
+</section>
+
+
+
+<!--  MIDDLE  -->
+<section id="compoView">
+
+    <main>
+      <div class="image-wrapper"><img src="../images/cloud-composer.jpeg"></div>
+        <div class="content">
+            <h3><a href="/docs/guide/composer/composer-overview">Application Composer</a></h3>
+            <p>Optimizing cloud apps starts with making them radically easier to provision.
+              Cloud Composer enables this agility via self-service composition, including
+              drag-and-drop provisioning of composite apps that run on a single or hybrid cloud.
+            </p>
+        </div>
+    </main>
+
+    <main>
+        <div class="image-wrapper"><img src="../images/cloud-optimizer.jpeg"></div>
+        <div class="content">
+            <h3><a href="/docs/guide/optimizer/optimizer-autoscaler/">Multi-Cloud Optimizer</a></h3>
+            <p> Cloud apps run with high performance, adhere to security rules and use a minimum
+              of infrastructure capacity when orchestrated by the AI-powered Cloud Optimizer.
+              Ensuring scalability and saving big money are central to the Cloud Optimizer’s value.
+            </p>
+        </div>
+    </main>
+
+    <main>
+      <div class="image-wrapper"><img src="../images/cloud-graph.jpeg"></div>
+        <div class="content">
+            <h3><a href="/docs/guide/cloud/cloud-graph">Knowledge Graph</a></h3>
+            <p>Unprecedented visibility into cloud resources, services and apps emerges
+              from the Cloud Graph. This includes a zoomable map of connected nodes and relationships,
+              and is coupled with natural-language search into the cloud environment.
+            </p>
+        </div>
+    </main>
+
+</section>
+
+<!-- Video Sectio -->
+
+<section id="video">
+
+    <div>
+      <h4>Explore those video tutorials:</h4>
+    </div>
+
+    <div>
+      <button id="desktopShowVideoButton" onclick="kub.showVideo(1)">Overview</button>
+      <button id="mobileShowVideoButton" onclick="kub.showVideo()"></button>
+      <button id="desktopShowVideoButton" onclick="kub.showVideo(2)">Scheduler</button>
+      <button id="desktopShowVideoButton" onclick="kub.showVideo(3)">Auto-scale Cassandra</button>
+    </div>
+
+    <div>
+      <h5><a href="https://www.youtube.com/channel/UCm22fZAiz4M5cjQTMU0D6Fg">Watch more videos on Composure.ai Youtube channel!</a></h5>
+    </div>
+</section>
+
+<div id="videoPlayer">
+    <iframe data-url="https://www.youtube.com/embed/IjBjra6ngNg?autoplay=1" frameborder="0" allowfullscreen></iframe>
+    <button id="closeButton"></button>
+</div>

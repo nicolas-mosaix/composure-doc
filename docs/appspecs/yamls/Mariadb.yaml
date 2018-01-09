@@ -1,0 +1,11 @@
+service:
+    alias: mariadb
+    type: CONTAINER
+    image: bitnami/mariadb:latest
+    cloud: Docker_Cloud_3
+    environment:
+        - "ALLOW_EMPTY_PASSWORD=yes"
+    volume_binds:
+        - "/path/to/mariadb-persistence:/bitnami"
+    ports:
+        - 3306:3306

@@ -1,0 +1,277 @@
+### ---------------------------------------------------------------------------
+###
+###                     Wordpress on Autopilot for Docker Clouds
+###
+### File name: wp-autopilot.yaml
+###
+### ---------------------------------------------------------------------------
+### Supported build: 5.1.26+
+###
+
+
+# ----------------------- VARIABLES --------------------------------
+
+cloud: &cloud_name Docker_Cloud_3
+subnet: &subnet_name 172.19.0.0/16
+server: &server_id ip-10-0-8-144
+
+environment: &set_env_consul "CONSUL=wp-autopilot-consul"
+#environment: &set_env_wp "WORDPRESS_URL=http://34.223.226.207"
+
+# -------------------------------------------------------------------
+
+service:
+  type: COMPOSITE
+  alias: Wordpress On Autopilot
+
+  decomposition:
+
+# ----------------------- CONSUL -----------------------------
+
+    - service:
+        type: CONTAINER
+        alias: consul
+        name: wp-autopilot-consul
+        image: mosaix/scalare:wp-autopilot-consul_v2
+        cpu: 1
+        memory: 1024
+        disk: 0
+        status: UP
+        timeout: 1800
+        environment:
+          - *set_env_consul
+        # Placement requirements:
+        cloud: *cloud_name
+        subnet: *subnet_name
+        server: *server_id
+        avoid_scheduler: true
+
+# ----------------------- NFS -----------------------------
+
+    - service:
+        type: CONTAINER
+        alias: nfs
+        prefix: nfs
+        image: mosaix/scalare:wp-autopilot-nfs_v2
+        cpu: 1
+        memory: 1024
+        disk: 0
+        timeout: 1800
+        environment:
+          - *set_env_consul
+        # Placement requirements:
+        cloud: *cloud_name
+        subnet: *subnet_name
+        server: *server_id
+        avoid_scheduler: true
+
+# ----------------------- NGINX -----------------------------
+
+    - service:
+        type: CONTAINER
+        alias: nginx
+        prefix: nginx
+        image: mosaix/scalare:wp-autopilot-nginx_v2
+        cpu: 1
+        memory: 1024
+        disk: 0
+        timeout: 1800
+        ports:
+          - 80:80
+          - 443:443
+        environment:
+          - *set_env_consul
+        # Placement requirements:
+        cloud: *cloud_name
+        subnet: *subnet_name
+        server: *server_id
+        avoid_scheduler: true
+
+# ----------------------- PROMETHEUS -----------------------------
+
+    - service:
+        type: CONTAINER
+        alias: prometheus
+        prefix: prometheus
+        image: mosaix/scalare:wp-autopilot-prometheus_v2
+        cpu: 1
+        memory: 1024
+        disk: 0
+        timeout: 1800
+        ports:
+          - 9090:9090
+        environment:
+          - *set_env_consul
+        # Placement requirements:
+        cloud: *cloud_name
+        subnet: *subnet_name
+        server: *server_id
+        avoid_scheduler: true
+
+# ----------------------- MYSQL (autoscaled) ----------------------
+
+    - service:
+        type: AUTOSCALER
+        alias: mysql
+
+        template:
+          - type: CONTAINER
+            prefix: mysql
+            image: mosaix/scalare:wp-autopilot-mysql_v2
+            cpu: 1
+            memory: 3072
+            disk: 0
+            status: UP
+            timeout: 1800
+            volume_binds:
+              - "/home/ubuntu/wp-autopilot:/snapshot"
+            environment:
+              - *set_env_consul
+            # Placement requirements:
+            cloud: *cloud_name
+            subnet: *subnet_name
+            server: *server_id
+            avoid_scheduler: true
+
+        policy:
+          - name: mysql-policy
+            min: 2
+            max: 20
+            monitor:
+              - name: queries_per_second
+                scale_in_threshold: 50
+                scale_out_threshold: 80
+                scale_in_unit: 1
+                scale_out_unit: 2
+                reaction_time: 30
+              - name: cpu_util
+                scale_in_threshold: 0
+                scale_out_threshold: 90
+                scale_in_unit: 1
+                scale_out_unit: 2
+                reaction_time: 30
+
+# -------------------- MEMCACHED (autoscaled) --------------
+
+    - service:
+        type: AUTOSCALER
+        alias: memcached
+
+        template:
+          - type: CONTAINER
+            prefix: memcached
+            image: mosaix/scalare:wp-autopilot-memcached_v2
+            cpu: 1
+            memory: 1024
+            disk: 0
+            subnet: *subnet_name
+            status: UP
+            timeout: 1800
+            environment:
+              - *set_env_consul
+            # Placement requirements:
+            cloud: *cloud_name
+            subnet: *subnet_name
+            server: *server_id
+            avoid_scheduler: true
+
+        policy:
+          - name: memcached-policy
+            min: 2
+            max: 7
+            monitor:
+              - name: mem_used
+                scale_in_threshold: 64
+                scale_out_threshold: 512
+                scale_in_unit: 1
+                scale_out_unit: 1
+                reaction_time: 60
+              - name: cpu_used
+                scale_in_threshold: 0.1
+                scale_out_threshold: 0.5
+                scale_in_unit: 1
+                scale_out_unit: 1
+                reaction_time: 60
+
+# -------------------- WORDPRESS (autoscaled) --------------
+
+    - service:
+        type: AUTOSCALER
+        alias: wordpress
+
+        template:
+          - type: CONTAINER
+            prefix: wordpress
+            image: mosaix/scalare:wp-autopilot-wordpress_v2
+            cpu: 1
+            memory: 1024
+            disk: 0
+            status: UP
+            timeout: 1800
+            environment:
+              - *set_env_consul
+              - "WORDPRESS_URL={{consul.implementation.host_ip_address}}"
+              #- *set_env_wp
+            # Placement requirements:
+            cloud: *cloud_name
+            subnet: *subnet_name
+            server: *server_id
+            avoid_scheduler: true
+
+        policy:
+          - name: wordpress-policy
+            min: 3
+            max: 20
+            monitor:
+              - name: requests_per_second
+                scale_in_threshold: 2
+                scale_out_threshold: 5
+                scale_in_unit: 2
+                scale_out_unit: 3
+                reaction_time: 20
+              - name: cpu_util
+                scale_in_threshold: 0
+                scale_out_threshold: 60
+                scale_in_unit: 2
+                scale_out_unit: 3
+                reaction_time: 60
+
+# -------------- SERVICE CREATION ORDER --------------
+
+    - relation:
+        type: order
+        before: consul
+        after: nfs
+
+    - relation:
+        type: order
+        before: consul
+        after: nginx
+
+    - relation:
+        type: order
+        before: consul
+        after: prometheus
+
+    - relation:
+        type: order
+        before: consul
+        after: memcached
+
+    - relation:
+        type: order
+        before: consul
+        after: mysql
+
+    - relation:
+        type: order
+        before: consul
+        after: wordpress
+
+# ----------------------------------------------------------------------------------------------
+
+
+# On the docker host, create a local bridge network and local volume:
+# $> docker network create wp-autopilot
+# Optional:
+# $> docker volume create wp-autopilot 

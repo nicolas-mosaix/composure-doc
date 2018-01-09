@@ -1,0 +1,11 @@
+service:
+  alias: Apache_service
+  prefix: apache_server
+  cloud: Docker_Cloud_3
+  image: httpd:latest
+  volume_binds:
+    - "/website/repo:/usr/local/apache2/htdocs/"
+  ports:
+    - 8081:80
+  avoid_scheduler: true
+  type: CONTAINER

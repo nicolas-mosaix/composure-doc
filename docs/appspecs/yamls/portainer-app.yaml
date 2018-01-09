@@ -1,0 +1,36 @@
+# ---------------------------------------------------------------------------
+#
+#                    PORTAINER as a service in a Docker Cloud
+#
+# ---------------------------------------------------------------------------
+# File name: portainer-app.yaml
+# ---------------------------------------------------------------------------
+# Version: build 5.2.3
+# Type: production
+# ---------------------------------------------------------------------------
+
+# --------------------------- VARIABLES  -----------------------------------
+
+# Name of a cloud which already exists in Composure:
+cloud: &cloud_name Docker_Cloud_10
+
+# Name of a subnet which already exists in Composure
+subnet: &subnet_name 10.0.1.0/24
+
+# ---------------------------------------------------------------------------
+
+service:
+    type: CONTAINER
+    alias: Portainer Server
+    cloud: *cloud_name
+    subnet: *subnet_name
+    timeout: 180
+
+    prefix: portainer-server
+    image: portainer/portainer
+    volume_binds:
+        - "/home/ubuntu/.certs:/.certs"
+    command: "--host tcp://52.53.233.236:3376 --tlsverify --tlscacert /.certs/ca.pem --tlscert /.certs/server.pem --tlskey /.certs/server-key.pem"
+
+    ports:
+        - :9000

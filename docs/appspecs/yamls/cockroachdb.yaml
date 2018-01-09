@@ -1,0 +1,131 @@
+### ---------------------------------------------------------------------------
+###
+###                     CockroachDB for Docker Clouds
+###
+### File name: cockroachdb.yaml
+###
+### ---------------------------------------------------------------------------
+### Supported build: 5.1.21+
+### ---------------------------------------------------------------------------
+
+# - Creates an overlay network
+# - Provisions a cockroachdb cluser made up of two nodes
+
+#############################################
+#          CONFIGURATION SETTINGS
+#############################################
+
+# replace 'cloud_name' with the name of your
+# mounted docker cloud
+cloud: &my_cloud Docker_Cloud_3
+
+# replace '10.0.3.0/24' with the desired subnet
+# range for the overlay network that will be created
+subnet: &my_subnet "10.0.3.0/24"
+
+# The following specifies the cpu and memory demands of
+# cockroachdb containers
+cpu: &cpu_demand 2
+memory: &mem_demand 3096
+#############################################
+
+service:
+  alias: Cockroachdb as a Service
+  type: COMPOSITE
+  description: {}
+  decomposition:
+  #############################################
+  #             Network Service
+  #############################################
+  - service:
+      alias: roach-net
+      type: NETWORK
+      description:
+        cloud: *my_cloud
+        name: roach-net
+        network_type: vxlan
+  #############################################
+  #             Subnet Service
+  #############################################
+  - service:
+      alias: roach-subnet
+      type: SUBNET
+      description:
+        cloud: *my_cloud
+        ip_range: *my_subnet
+        name: roach-subnet
+        network: roach-net
+        network_type: vxlan
+  #############################################
+  #             Wsched Service
+  #############################################
+  - service:
+      alias: wsched
+      type: WSCHED
+      description:
+        avoid_monitoring: true
+        clouds:
+          - name: *my_cloud
+        config:
+        - cpu: *cpu_demand
+          memory: *mem_demand
+          disk: 0
+          name: cockroach_id
+          count: 2
+          ports:
+            - 7080:8080
+            - 26257:26257
+        policy: fast-spread # Scheduling policy
+  #############################################
+  #             Cockroach DB - node1
+  #############################################
+  - service:
+      alias: node1
+      type: CONTAINER
+      description:
+        name: node1
+        image: cockroachdb/cockroach:v1.0
+        subnet: *my_subnet
+        cpu: *cpu_demand
+        memory: *mem_demand
+        ports:
+        - 7080:8080
+        - 26257:26257
+        reservation: '{{wsched.implementation.cockroach_id_1}}'
+        command: "start --insecure --advertise-host=node1"
+  #############################################
+  #             Cockroach DB - node2
+  #############################################
+  - service:
+      alias: node2
+      type: CONTAINER
+      description:
+        name: node2
+        image: cockroachdb/cockroach:v1.0
+        subnet: *my_subnet
+        cpu: *cpu_demand
+        memory: *mem_demand
+        ports:
+        - 7080:8080
+        - 26257:26257
+        reservation: '{{wsched.implementation.cockroach_id_2}}'
+        command: "start --insecure --join={{node1.implementation.private_ip$0}}:26257 --advertise-host=node2"
+  #############################################
+  #             Service Order
+  #############################################
+  - relation:
+        type: order
+        before: roach-net
+        after: roach-subnet
+  - relation:
+        type: order
+        before: roach-subnet
+        after: wsched
+  - relation:
+        type: order
+        before: wsched
+        after: node1
+  - relation:
+        type: order
+        before: node1
+        after: node2

@@ -1,0 +1,14 @@
+service:
+  alias: Jenkins Server
+  type: CONTAINER
+  cloud: Docker_Cloud_3
+  image : jenkins
+  prefix: jenkins
+  cpu: 1
+  memory: 2048
+  subnet: 10.1.0.0/16
+  ports:
+    - :8080
+    - :50000
+  volume_binds:
+    - "/home/ubuntu:/var/jenkins_home"

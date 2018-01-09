@@ -1,0 +1,40 @@
+### ---------------------------------------------------------------------------
+###
+###                   Deploying a single Neo4j in a Docker Cloud
+###
+### ---------------------------------------------------------------------------
+### File name: neo4j-single.yaml
+### ---------------------------------------------------------------------------
+### Version: build 5.1.19+
+### Type: production
+### ---------------------------------------------------------------------------
+
+# http://neo4j.com/docs/operations-manual/current/installation/docker/
+
+service:
+    type: CONTAINER
+    alias: "Neo4j Single"
+    prefix: my_neo4j
+    
+    cloud: Docker_Cloud_3
+    avoid_scheduler: true
+    subnet: 192.168.2.0/24
+    
+    cpu: 1
+    memory: 1024                        # At least 1024 MB for the container to start
+    #avoid_reservation: true
+    image: neo4j:3.2                    # Community Edition
+    
+    ports: 
+        - 7674:7474
+        - 7887:7687
+
+    volume_binds: 
+        - "/home/ubuntu/neo4j/data:/data"
+        - "/home/ubuntu/neo4j/logs:/logs"
+
+    environment: 
+        - "ulimit=nofile=40000:40000"           # # of open file descriptors in a container:
+                                                # 4K max recommended.
+    #    - "NEO4J_dbms_memory_heap_maxSize=1G"
+        
